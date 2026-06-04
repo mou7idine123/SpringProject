@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Documentation — Gestion de Scolarite</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #222; font-size: 13px; margin: 30px 40px; }
+  h1 { color: #fff; background: #1a3a5c; text-align: center; padding: 18px; font-size: 22px; border-radius: 6px; }
+  .subtitle { text-align: center; color: #555; margin: 8px 0 24px 0; }
+  h2 { color: #fff; background: #1a3a5c; padding: 8px 14px; font-size: 15px; margin: 28px 0 12px 0; border-radius: 4px; }
+  h3 { color: #1a3a5c; font-size: 13px; margin: 16px 0 6px 0; border-left: 4px solid #1a3a5c; padding-left: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  th { background: #2e6da4; color: #fff; padding: 7px 10px; text-align: left; font-size: 12px; }
+  td { padding: 6px 10px; border-bottom: 1px solid #ddd; font-size: 12px; }
+  tr:nth-child(even) { background: #f4f7fb; }
+  pre { background: #f5f5f5; border-left: 4px solid #2e6da4; padding: 10px 14px; border-radius: 4px; font-size: 11.5px; margin: 6px 0 14px 0; }
+  .get    { display:inline-block; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:bold; color:#fff; background:#28a745; }
+  .post   { display:inline-block; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:bold; color:#fff; background:#007bff; }
+  .put    { display:inline-block; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:bold; color:#fff; background:#fd7e14; }
+  .del    { display:inline-block; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:bold; color:#fff; background:#dc3545; }
+  .box    { background:#f0f6ff; border:1px solid #b8d4f0; border-radius:5px; padding:12px 16px; margin:10px 0; }
+  .ok     { background:#e8f5e9; border:1px solid #a5d6a7; border-radius:5px; padding:10px 14px; margin:8px 0; }
+  .err    { background:#ffebee; border:1px solid #ef9a9a; border-radius:5px; padding:10px 14px; margin:8px 0; }
+  .step   { display:inline-block; background:#1a3a5c; color:#fff; border-radius:50%; width:22px; height:22px; text-align:center; line-height:22px; font-size:12px; font-weight:bold; margin-right:6px; }
+  hr { border:none; border-top:2px solid #e0e0e0; margin:24px 0; }
+</style>
+</head>
+<body>
+<h1>Application de Gestion de Scolarite</h1>
+<p class="subtitle">Documentation technique complète — API REST Spring Boot + JWT</p>
+
+<h2>1. Présentation</h2>
+<p>Application REST pour administrer un établissement scolaire : gestion des étudiants, enseignants, modules, inscriptions et notes avec authentification JWT.</p>
+<div class="box">
+  <strong>Technologies :</strong> Java 17 &nbsp;|&nbsp; Spring Boot 3.2.5 &nbsp;|&nbsp;
+  Spring Web &nbsp;|&nbsp; Spring Data JPA &nbsp;|&nbsp; Spring Security &nbsp;|&nbsp;
+  MySQL &nbsp;|&nbsp; JWT (jjwt 0.11.5)
+</div>
+
+<h2>2. Architecture</h2>
+<table>
+  <tr><th>Couche</th><th>Rôle</th><th>Classes</th></tr>
+  <tr><td>Entity</td><td>Modèle de données / tables BDD</td><td>Etudiant, Enseignant, Module, Inscription, Note</td></tr>
+  <tr><td>Repository</td><td>Accès base de données (JPA)</td><td>5 interfaces JpaRepository</td></tr>
+  <tr><td>Service</td><td>Logique métier</td><td>EtudiantService, EnseignantService, ModuleService, InscriptionService, NoteService</td></tr>
+  <tr><td>Controller</td><td>Endpoints REST</td><td>AuthController, EtudiantController, EnseignantController, ModuleController, InscriptionController, NoteController</td></tr>
+  <tr><td>Security</td><td>JWT Filter + UserDetailsService</td><td>JwtService, JwtAuthFilter, AdminUserDetailsService, SecurityConfig</td></tr>
+  <tr><td>DTO</td><td>Objets de transfert</td><td>LoginRequest, LoginResponse</td></tr>
+</table>
+
+<h2>3. Configuration MySQL</h2>
+<pre>spring.datasource.url=jdbc:mysql://localhost:3306/scolarite_db
+spring.datasource.username=root
+spring.datasource.password=root
+spring.jpa.hibernate.ddl-auto=update</pre>
+<p>La base <strong>scolarite_db</strong> et toutes les tables sont créées automatiquement au démarrage.</p>
+
+<h2>4. Authentification JWT — Comment se connecter</h2>
+
+<p>L'application utilise <strong>JSON Web Token (JWT)</strong>. Il faut d'abord se connecter pour obtenir un token, puis utiliser ce token pour chaque requête protégée.</p>
+
+<h3><span class="step">1</span> Se connecter — obtenir le token</h3>
+<table>
+  <tr><th>Méthode</th><th>URL</th><th>Auth requise</th></tr>
+  <tr><td><span class="post">POST</span></td><td>/api/auth/login</td><td>Non — public</td></tr>
+</table>
+
+<p><strong>Corps de la requête (JSON) :</strong></p>
+<pre>{
+  "email":    "admin@scolarite.com",
+  "password": "admin123"
+}</pre>
+
+<p><strong>Réponse en cas de succès (200 OK) :</strong></p>
+<pre>{
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6IltST0xFX0FETUlOXSIsInN1YiI6ImFkbWluQHNjb2xhcml0ZS5jb20iLCJpYXQiOjE3MTcwMDAwMDAsImV4cCI6MTcxNzA4NjQwMH0.XXXXX",
+  "type":  "Bearer",
+  "email": "admin@scolarite.com",
+  "role":  "ROLE_ADMIN"
+}</pre>
+
+<div class="err"><strong>Mauvais email ou mot de passe :</strong> 401 Unauthorized — "Email ou mot de passe incorrect."</div>
+
+<h3><span class="step">2</span> Utiliser le token dans Postman</h3>
+<p>Dans chaque requête protégée, ajouter le token dans l'en-tête HTTP :</p>
+<pre>Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...</pre>
+
+<p><strong>Dans Postman :</strong></p>
+<table>
+  <tr><th>Onglet</th><th>Champ</th><th>Valeur</th></tr>
+  <tr><td>Authorization</td><td>Type</td><td>Bearer Token</td></tr>
+  <tr><td>Authorization</td><td>Token</td><td>Coller le token reçu au login</td></tr>
+</table>
+
+<div class="ok"><strong>Token valide :</strong> Accès autorisé — 200 OK ou 201 Created</div>
+<div class="err"><strong>Sans token ou token invalide :</strong> 403 Forbidden</div>
+
+<h3><span class="step">3</span> Durée de validité</h3>
+<p>Le token est valide <strong>24 heures</strong>. Après expiration, refaire un login pour obtenir un nouveau token.</p>
+
+<h2>5. Règles de sécurité</h2>
+<table>
+  <tr><th>Type de requête</th><th>Accès</th><th>Token requis</th></tr>
+  <tr><td><span class="post">POST</span> /api/auth/login</td><td>Public</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span> /api/**</td><td>Public — lecture libre</td><td>Non</td></tr>
+  <tr><td><span class="post">POST</span> /api/**</td><td>ADMIN uniquement</td><td>Oui</td></tr>
+  <tr><td><span class="put">PUT</span> /api/**</td><td>ADMIN uniquement</td><td>Oui</td></tr>
+  <tr><td><span class="del">DELETE</span> /api/**</td><td>ADMIN uniquement</td><td>Oui</td></tr>
+</table>
+
+<h2>6. Endpoints — Etudiants</h2>
+<table>
+  <tr><th>Méthode</th><th>URL</th><th>Description</th><th>Auth</th></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/etudiants</td><td>Tous les étudiants</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/etudiants/{id}</td><td>Etudiant par ID</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/etudiants/matricule/{matricule}</td><td>Etudiant par matricule</td><td>Non</td></tr>
+  <tr><td><span class="post">POST</span></td><td>/api/etudiants</td><td>Ajouter un étudiant</td><td>Oui</td></tr>
+  <tr><td><span class="put">PUT</span></td><td>/api/etudiants/{id}</td><td>Modifier un étudiant</td><td>Oui</td></tr>
+  <tr><td><span class="del">DELETE</span></td><td>/api/etudiants/{id}</td><td>Supprimer un étudiant</td><td>Oui</td></tr>
+</table>
+<pre>{
+  "nom": "Benali", "prenom": "Yassine", "matricule": "ETU001",
+  "email": "yassine@email.com", "dateNaissance": "2002-05-15",
+  "filiere": "Informatique", "niveau": "L2"
+}</pre>
+
+<h2>7. Endpoints — Enseignants</h2>
+<table>
+  <tr><th>Méthode</th><th>URL</th><th>Description</th><th>Auth</th></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/enseignants</td><td>Tous les enseignants</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/enseignants/{id}</td><td>Enseignant par ID</td><td>Non</td></tr>
+  <tr><td><span class="post">POST</span></td><td>/api/enseignants</td><td>Ajouter un enseignant</td><td>Oui</td></tr>
+  <tr><td><span class="put">PUT</span></td><td>/api/enseignants/{id}</td><td>Modifier un enseignant</td><td>Oui</td></tr>
+  <tr><td><span class="del">DELETE</span></td><td>/api/enseignants/{id}</td><td>Supprimer un enseignant</td><td>Oui</td></tr>
+</table>
+<pre>{
+  "nom": "Mansouri", "prenom": "Karim",
+  "email": "karim@ecole.com", "specialite": "Algorithmique"
+}</pre>
+
+<h2>8. Endpoints — Modules</h2>
+<table>
+  <tr><th>Méthode</th><th>URL</th><th>Description</th><th>Auth</th></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/modules</td><td>Tous les modules</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/modules/{id}</td><td>Module par ID</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/modules/semestre/{s}</td><td>Modules d'un semestre</td><td>Non</td></tr>
+  <tr><td><span class="post">POST</span></td><td>/api/modules</td><td>Ajouter un module</td><td>Oui</td></tr>
+  <tr><td><span class="put">PUT</span></td><td>/api/modules/{id}</td><td>Modifier un module</td><td>Oui</td></tr>
+  <tr><td><span class="put">PUT</span></td><td>/api/modules/{id}/enseignant/{eid}</td><td>Affecter un enseignant</td><td>Oui</td></tr>
+  <tr><td><span class="del">DELETE</span></td><td>/api/modules/{id}</td><td>Supprimer un module</td><td>Oui</td></tr>
+</table>
+<pre>{
+  "code": "INF301", "nom": "Algorithmique",
+  "description": "Structures de données", "coefficient": 3, "semestre": 1
+}</pre>
+
+<h2>9. Endpoints — Inscriptions</h2>
+<table>
+  <tr><th>Méthode</th><th>URL</th><th>Description</th><th>Auth</th></tr>
+  <tr><td><span class="post">POST</span></td><td>/api/inscriptions/etudiant/{eid}/module/{mid}</td><td>Inscrire un étudiant</td><td>Oui</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/inscriptions/etudiant/{eid}</td><td>Modules d'un étudiant</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/inscriptions/module/{mid}</td><td>Etudiants d'un module</td><td>Non</td></tr>
+  <tr><td><span class="del">DELETE</span></td><td>/api/inscriptions/{id}</td><td>Supprimer une inscription</td><td>Oui</td></tr>
+</table>
+<p>Pas de body requis — les IDs sont dans l'URL.</p>
+
+<h2>10. Endpoints — Notes</h2>
+<table>
+  <tr><th>Méthode</th><th>URL</th><th>Description</th><th>Auth</th></tr>
+  <tr><td><span class="post">POST</span></td><td>/api/notes</td><td>Ajouter une note</td><td>Oui</td></tr>
+  <tr><td><span class="put">PUT</span></td><td>/api/notes/{id}</td><td>Modifier une note</td><td>Oui</td></tr>
+  <tr><td><span class="del">DELETE</span></td><td>/api/notes/{id}</td><td>Supprimer une note</td><td>Oui</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/notes/etudiant/{id}</td><td>Toutes les notes d'un étudiant</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/notes/etudiant/{id}/semestre/{s}</td><td>Notes par semestre</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/notes/etudiant/{id}/moyenne</td><td>Moyenne générale</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/notes/etudiant/{id}/moyenne/semestre/{s}</td><td>Moyenne par semestre</td><td>Non</td></tr>
+  <tr><td><span class="get">GET</span></td><td>/api/notes/etudiant/{id}/resultats</td><td>Résultats + mention</td><td>Non</td></tr>
+</table>
+<pre>// Ajouter une note
+{ "etudiantId": 1, "moduleId": 1, "note": 15.5, "annee": "2024-2025" }
+
+// Modifier une note
+{ "note": 17.0 }</pre>
+
+<h2>11. Système de mentions</h2>
+<table>
+  <tr><th>Moyenne</th><th>Mention</th></tr>
+  <tr><td>>= 16 / 20</td><td>Très Bien</td></tr>
+  <tr><td>>= 14 / 20</td><td>Bien</td></tr>
+  <tr><td>>= 12 / 20</td><td>Assez Bien</td></tr>
+  <tr><td>>= 10 / 20</td><td>Passable</td></tr>
+  <tr><td>&lt; 10 / 20</td><td>Insuffisant</td></tr>
+</table>
+
+<h2>12. Gestion des erreurs</h2>
+<table>
+  <tr><th>Situation</th><th>Code HTTP</th></tr>
+  <tr><td>Ressource créée avec succès</td><td>201 Created</td></tr>
+  <tr><td>Requête GET réussie</td><td>200 OK</td></tr>
+  <tr><td>Suppression réussie</td><td>204 No Content</td></tr>
+  <tr><td>Etudiant / Enseignant / Module / Note introuvable</td><td>404 Not Found</td></tr>
+  <tr><td>Etudiant déjà inscrit au même module</td><td>400 Bad Request</td></tr>
+  <tr><td>Email ou mot de passe incorrect</td><td>401 Unauthorized</td></tr>
+  <tr><td>Token absent ou invalide sur endpoint protégé</td><td>403 Forbidden</td></tr>
+</table>
+
+<h2>13. Lancer l'application</h2>
+<pre># Etape 1 : créer la base MySQL si elle n'existe pas
+mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS scolarite_db;"
+
+# Etape 2 : libérer le port 8080 si nécessaire
+fuser -k 8080/tcp
+
+# Etape 3 : lancer l'application
+./mvnw spring-boot:run</pre>
+<p>L'API est disponible sur : <strong>http://localhost:8080</strong></p>
+
+<hr>
+<p style="text-align:center; color:#888; font-size:11px; margin-top:20px;">
+  Application de Gestion de Scolarite — Spring Boot REST API — Java 17 — JWT Security
+</p>
+</body>
+</html>
