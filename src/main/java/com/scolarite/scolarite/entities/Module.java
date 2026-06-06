@@ -1,5 +1,6 @@
 package com.scolarite.scolarite.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -23,17 +24,15 @@ public class Module {
     @JoinColumn(name = "enseignant_id")
     private Enseignant enseignant;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "module", cascade = CascadeType.ALL)
     private List<Inscription> inscriptions;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "module", cascade = CascadeType.ALL)
     private List<Note> notes;
 
-    // ===== Constructeurs =====
-
     public Module() {}
-
-    // ===== Getters & Setters =====
 
     public Long getId() { return id; }
 

@@ -1,5 +1,6 @@
 package com.scolarite.scolarite.security;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -12,20 +13,25 @@ public class AdminUserDetailsService implements UserDetailsService {
 
     private final PasswordEncoder passwordEncoder;
 
+    // Mot de passe encodé une seule fois au démarrage
+    private String encodedPassword;
+
     public AdminUserDetailsService(PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /**
-     * Charge l'utilisateur par email (utilisé comme username dans JWT).
-     * Un seul utilisateur ADMIN défini en dur.
-     */
+    @PostConstruct
+    public void init() {
+        // Encoder "admin123" une seule fois au démarrage de l'application
+        this.encodedPassword = passwordEncoder.encode("admin123");
+    }
+
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         if ("admin@scolarite.com".equals(email)) {
             return User.builder()
                     .username("admin@scolarite.com")
-                    .password(passwordEncoder.encode("admin123"))
+                    .password(encodedPassword)   // mot de passe déjà encodé
                     .roles("ADMIN")
                     .build();
         }

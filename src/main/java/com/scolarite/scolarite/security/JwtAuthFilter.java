@@ -31,34 +31,45 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Lire l'en-tête Authorization
         String authHeader = request.getHeader("Authorization");
 
-        // Si pas de token Bearer → on passe au filtre suivant
+        System.out.println("[JWT] " + request.getMethod() + " " + request.getRequestURI()
+                + " | Authorization: " + authHeader);
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.out.println("[JWT] Pas de token Bearer — requête publique");
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extraire le token (enlever "Bearer ")
         String token = authHeader.substring(7);
-        String username = jwtService.extractUsername(token);
+        System.out.println("[JWT] Token reçu : " + token.substring(0, Math.min(30, token.length())) + "...");
 
-        // Si username extrait et pas encore authentifié dans le contexte
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        try {
+            String username = jwtService.extractUsername(token);
+            System.out.println("[JWT] Username extrait : " + username);
 
-            if (jwtService.isTokenValid(token, userDetails)) {
-                // Créer l'objet d'authentification et l'injecter dans le contexte
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                System.out.println("[JWT] Authorities : " + userDetails.getAuthorities());
+
+                if (jwtService.isTokenValid(token, userDetails)) {
+                    System.out.println("[JWT] Token VALIDE — authentification OK");
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else {
+                    System.out.println("[JWT] Token INVALIDE ou expiré");
+                }
             }
+        } catch (Exception e) {
+            System.out.println("[JWT] EXCEPTION : " + e.getClass().getSimpleName() + " — " + e.getMessage());
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);

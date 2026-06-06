@@ -12,7 +12,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -23,22 +22,21 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService;
+    private final PasswordEncoder passwordEncoder;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, UserDetailsService userDetailsService) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+                          UserDetailsService userDetailsService,
+                          PasswordEncoder passwordEncoder) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
+        provider.setPasswordEncoder(passwordEncoder);
         return provider;
     }
 
@@ -50,51 +48,36 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Désactiver CSRF (API REST stateless)
             .csrf(csrf -> csrf.disable())
-
-            // Pas de session HTTP (JWT = stateless)
+            .cors(cors -> cors.configurationSource(request -> {
+                var config = new org.springframework.web.cors.CorsConfiguration();
+                config.setAllowedOriginPatterns(java.util.List.of("*"));
+                config.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(java.util.List.of("*"));
+                config.setAllowCredentials(false);
+                return config;
+            }))
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-
             .authorizeHttpRequests(auth -> auth
 
-                // Login public — pas besoin d'être authentifié
+                // OPTIONS preflight CORS
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Login public
                 .requestMatchers("/api/auth/**").permitAll()
 
-                // GET publics — lecture libre
+                // GET publics
                 .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
 
-                // Étudiants — ADMIN uniquement
-                .requestMatchers(HttpMethod.POST,   "/api/etudiants").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/api/etudiants/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/etudiants/**").hasRole("ADMIN")
+                // POST, PUT, DELETE — ADMIN uniquement (hasAuthority vérifie la chaîne exacte)
+                .requestMatchers(HttpMethod.POST,   "/api/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT,    "/api/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/**").hasAuthority("ROLE_ADMIN")
 
-                // Enseignants — ADMIN uniquement
-                .requestMatchers(HttpMethod.POST,   "/api/enseignants").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/api/enseignants/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/enseignants/**").hasRole("ADMIN")
-
-                // Modules — ADMIN uniquement
-                .requestMatchers(HttpMethod.POST,   "/api/modules").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/api/modules/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/modules/**").hasRole("ADMIN")
-
-                // Inscriptions — ADMIN uniquement
-                .requestMatchers(HttpMethod.POST,   "/api/inscriptions/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/inscriptions/**").hasRole("ADMIN")
-
-                // Notes — ADMIN uniquement
-                .requestMatchers(HttpMethod.POST,   "/api/notes").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/api/notes/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/notes/**").hasRole("ADMIN")
-
-                // Tout le reste : authentifié
                 .anyRequest().authenticated()
             )
-
-            // Brancher le filtre JWT avant le filtre d'authentification Spring
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
